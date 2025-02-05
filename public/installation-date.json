@@ -1,0 +1,17 @@
+{
+  "installDate": "2024-08-01T10:30:57.957Z",
+  "appId": {
+    "frameId": 1,
+    "processId": 4,
+    "sender": {
+      "_windowOpenHandler": null,
+      "ipc": {
+        "_events": {},
+        "_eventsCount": 1,
+        "_invokeHandlers": {}
+      },
+      "_events": {},
+      "_eventsCount": 15
+    }
+  }
+}

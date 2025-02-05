@@ -1,0 +1,307 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow:
+
+import { useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import paper from 'paper';
+
+// Function to assign permanent IDs if not already assigned
+const assignPermanentIds = (svg) => {
+  svg.getItems({ class: paper.Path }).forEach((item) => {
+    if (!item.data.permanentId) {
+      item.data.permanentId = path-${uuidv4()};
+      item.setAttribute('data-permanent-id', item.data.permanentId);
+    } else {
+      item.data.permanentId = item.getAttribute('data-permanent-id');
+    }
+  });
+
+  svg.getItems({ class: paper.PointText }).forEach((item) => {
+    if (!item.data.permanentId) {
+      item.data.permanentId = text-${uuidv4()};
+      item.setAttribute('data-permanent-id', item.data.permanentId);
+    } else {
+      item.data.permanentId = item.getAttribute('data-permanent-id');
+    }
+  });
+
+  return svg;
+};
+
+// Function to save SVG with permanent IDs
+const saveSVGWithPermanentIds = (svg, filePath) => {
+  const svgString = svg.exportSVG({ asString: true });
+  window.api.send('save-svg', { svgString, filePath });
+};
+
+// Main component logic
+useEffect(() => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+
+  paper.setup(canvas);
+
+  if (conndoc) {
+    paper.project.clear();
+    viewRef.current = paper.view;
+
+    svgGroupRef.current = new paper.Group();
+    if (highlightConndoc) {
+      const highlightRect = new paper.Path.Rectangle({
+        point: [0, 0],
+        size: paper.view.size,
+        fillColor: new paper.Color(1, 1, 0, 0.5) // Yellow with 50% opacity
+      });
+      svgGroupRef.current.addChild(highlightRect);
+    }
+
+    paper.project.importSVG(conndoc, (importedSVG) => {
+      assignPermanentIds(importedSVG);
+
+      importedSVG.fitBounds(new paper.Rectangle(new paper.Point(0, 0), new paper.Size(paper.view.size.width, paper.view.size.height)));
+      svgGroupRef.current.addChild(importedSVG);
+      svgGroupRef.current.position = paper.view.center;
+      svgGroupRef.current.fitBounds(paper.view.bounds);
+      paper.view.draw();
+
+      conndocElementsRef.current = importedSVG.getItems({ class: paper.Item });
+
+      saveSVGWithPermanentIds(importedSVG, conndoc); // Save updated SVG with IDs
+    });
+  }
+}, [conndoc, highlightConndoc]);
+
+useEffect(() => {
+  if (!viewRef.current || !masdoc) return;
+
+  if (overlayGroupRef.current) {
+    overlayGroupRef.current.remove();
+  }
+
+  overlayGroupRef.current = new paper.Group();
+  if (highlightMasdoc) {
+    const highlightRect = new paper.Path.Rectangle({
+      point: [0, 0],
+      size: paper.view.size,
+      fillColor: new paper.Color(1, 1, 0, 0.5) // Yellow with 50% opacity
+    });
+    overlayGroupRef.current.addChild(highlightRect);
+  }
+
+  paper.project.importSVG(masdoc, (importedSVG) => {
+    assignPermanentIds(importedSVG);
+
+    importedSVG.getItems({ class: paper.Path }).forEach((item) => {
+      item.data.fromMasdoc = true;
+      originalIdsMap.current.set(item.pathData, item.data.permanentId);
+    });
+
+    importedSVG.getItems({ class: paper.PointText }).forEach((item) => {
+      item.data.fromMasdoc = true;
+      originalIdsMap.current.set(item.content, item.data.permanentId);
+    });
+
+    importedSVG.opacity = 0.5; // Set transparency for the overlay
+
+    importedSVG.fitBounds(new paper.Rectangle(new paper.Point(0, 0), new paper.Size(paper.view.size.width, paper.view.size.height)));
+    overlayGroupRef.current.addChild(importedSVG);
+    overlayGroupRef.current.position = paper.view.center;
+    overlayGroupRef.current.fitBounds(paper.view.bounds);
+    paper.view.draw();
+
+    masdocElementsRef.current = importedSVG.getItems({ class: paper.Item });
+
+    saveSVGWithPermanentIds(importedSVG, masdoc); // Save updated SVG with IDs
+  });
+}, [masdoc, highlightMasdoc]);
+
+const copyExtraElements = () => {
+  if (!conndocElementsRef.current || !masdocElementsRef.current) return;
+
+  const masdocPaths = new Set(
+    masdocElementsRef.current
+      .filter(item => item instanceof paper.Path)
+      .map(item => item.pathData)
+  );
+
+  const masdocTexts = new Set(
+    masdocElementsRef.current
+      .filter(item => item instanceof paper.PointText)
+      .map(item => item.content)
+  );
+
+  let overlayPathIndex = 0;
+  let overlayTextIndex = 0;
+
+  conndocElementsRef.current.forEach(item => {
+    if (item instanceof paper.Path && !masdocPaths.has(item.pathData)) {
+      const clonedItem = item.clone();
+      clonedItem.data.permanentId = path-${uuidv4()};
+      clonedItem.setAttribute('data-permanent-id', clonedItem.data.permanentId);
+      originalIdsMap.current.set(clonedItem.pathData, clonedItem.data.permanentId);
+      overlayGroupRef.current.addChild(clonedItem);
+    } else if (item instanceof paper.PointText && !masdocTexts.has(item.content)) {
+      const clonedItem = item.clone();
+      clonedItem.data.permanentId = text-${uuidv4()};
+      clonedItem.setAttribute('data-permanent-id', clonedItem.data.permanentId);
+      originalIdsMap.current.set(clonedItem.content, clonedItem.data.permanentId);
+      overlayGroupRef.current.addChild(clonedItem);
+    } else if (item instanceof paper.Path && masdocPaths.has(item.pathData)) {
+      item.data.permanentId = originalIdsMap.current.get(item.pathData);
+      overlayGroupRef.current.addChild(item);
+    } else if (item instanceof paper.PointText && masdocTexts.has(item.content)) {
+      item.data.permanentId = originalIdsMap.current.get(item.content);
+      overlayGroupRef.current.addChild(item);
+    }
+  });
+
+  paper.view.draw();
+
+  const svgString = paper.project.exportSVG({ asString: true });
+  window.api.send('copy-to-master', { svgString, originalMasdocPath: masdoc });
+};
+
+------------------------------------------------
+const assignPermanentIds = (svg) => {
+        svg.getItems({ class: paper.Path }).forEach((item) => {
+            if (!item.data.permanentId) {
+                item.data.permanentId = path-${uuidv4()};
+            }
+        });
+
+        svg.getItems({ class: paper.PointText }).forEach((item) => {
+            if (!item.data.permanentId) {
+                item.data.permanentId = text-${uuidv4()};
+            }
+        });
+
+        return svg;
+    };
+
+    const saveSVGWithPermanentIds = (svg, filePath) => {
+        const svgString = svg.exportSVG({ asString: true });
+        window.api.send('save-svg', { svgString, filePath });
+    };
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        paper.setup(canvas);
+
+        if (conndoc) {
+            paper.project.clear();
+            viewRef.current = paper.view;
+
+            svgGroupRef.current = new paper.Group();
+            if (highlightConndoc) {
+                const highlightRect = new paper.Path.Rectangle({
+                    point: [0, 0],
+                    size: paper.view.size,
+                    fillColor: new paper.Color(1, 1, 0, 0.5) // Yellow with 50% opacity
+                });
+                svgGroupRef.current.addChild(highlightRect);
+            }
+
+            paper.project.importSVG(conndoc, (importedSVG) => {
+                assignPermanentIds(importedSVG);
+
+                importedSVG.fitBounds(new paper.Rectangle(new paper.Point(0, 0), new paper.Size(paper.view.size.width, paper.view.size.height)));
+                svgGroupRef.current.addChild(importedSVG);
+                svgGroupRef.current.position = paper.view.center;
+                svgGroupRef.current.fitBounds(paper.view.bounds);
+                paper.view.draw();
+
+                conndocElementsRef.current = importedSVG.getItems({ class: paper.Item });
+
+                saveSVGWithPermanentIds(importedSVG, conndoc); // Save updated SVG with IDs
+            });
+        }
+    }, [conndoc, highlightConndoc]);
+
+    useEffect(() => {
+        if (!viewRef.current || !masdoc) return;
+
+        if (overlayGroupRef.current) {
+            overlayGroupRef.current.remove();
+        }
+
+        overlayGroupRef.current = new paper.Group();
+        if (highlightMasdoc) {
+            const highlightRect = new paper.Path.Rectangle({
+                point: [0, 0],
+                size: paper.view.size,
+                fillColor: new paper.Color(1, 1, 0, 0.5) // Yellow with 50% opacity
+            });
+            overlayGroupRef.current.addChild(highlightRect);
+        }
+
+        paper.project.importSVG(masdoc, (importedSVG) => {
+            assignPermanentIds(importedSVG);
+
+            importedSVG.getItems({ class: paper.Path }).forEach((item) => {
+                item.data.fromMasdoc = true;
+                originalIdsMap.current.set(item.pathData, item.data.permanentId);
+            });
+
+            importedSVG.getItems({ class: paper.PointText }).forEach((item) => {
+                item.data.fromMasdoc = true;
+                originalIdsMap.current.set(item.content, item.data.permanentId);
+            });
+
+            importedSVG.opacity = 0.5; // Set transparency for the overlay
+
+            importedSVG.fitBounds(new paper.Rectangle(new paper.Point(0, 0), new paper.Size(paper.view.size.width, paper.view.size.height)));
+            overlayGroupRef.current.addChild(importedSVG);
+            overlayGroupRef.current.position = paper.view.center;
+            overlayGroupRef.current.fitBounds(paper.view.bounds);
+            paper.view.draw();
+
+            masdocElementsRef.current = importedSVG.getItems({ class: paper.Item });
+
+            saveSVGWithPermanentIds(importedSVG, masdoc); // Save updated SVG with IDs
+        });
+    }, [masdoc, highlightMasdoc]);
+const copyExtraElements = () => {    if (!conndocElementsRef.current || !masdocElementsRef.current) return;
+
+        const masdocPaths = new Set(
+            masdocElementsRef.current
+                .filter(item => item instanceof paper.Path)
+                .map(item => item.pathData)
+        );
+
+        const masdocTexts = new Set(
+            masdocElementsRef.current
+                .filter(item => item instanceof paper.PointText)
+                .map(item => item.content)
+        );
+
+        let overlayPathIndex = 0;
+        let overlayTextIndex = 0;
+
+        conndocElementsRef.current.forEach(item => {
+            if (item instanceof paper.Path && !masdocPaths.has(item.pathData)) {
+                const clonedItem = item.clone();
+                clonedItem.data.permanentId = path-${uuidv4()};
+                originalIdsMap.current.set(clonedItem.pathData, clonedItem.data.permanentId);
+                overlayGroupRef.current.addChild(clonedItem);
+            } else if (item instanceof paper.PointText && !masdocTexts.has(item.content)) {
+                const clonedItem = item.clone();
+                clonedItem.data.permanentId = text-${uuidv4()};
+                originalIdsMap.current.set(clonedItem.content, clonedItem.data.permanentId);
+                overlayGroupRef.current.addChild(clonedItem);
+            } else if (item instanceof paper.Path && masdocPaths.has(item.pathData)) {
+                item.data.permanentId = originalIdsMap.current.get(item.pathData);
+                overlayGroupRef.current.addChild(item);
+            } else if (item instanceof paper.PointText && masdocTexts.has(item.content)) {
+                item.data.permanentId = originalIdsMap.current.get(item.content);
+                overlayGroupRef.current.addChild(item);
+            }
+        });
+
+        paper.view.draw();
+
+        const svgString = paper.project.exportSVG({ asString: true });
+        window.api.send('copy-to-master', { svgString, originalMasdocPath: masdoc });
+    };.
