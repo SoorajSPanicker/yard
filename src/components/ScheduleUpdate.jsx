@@ -7,6 +7,9 @@ function ScheduleUpdate({ schedule, onclose, scheduleData }) {
     const [isMinimized, setIsMinimized] = useState(false);
     const [isMaximized, setIsMaximized] = useState(false);
     const [isVisible, setIsVisible] = useState(true);
+    const [editedRowIndex, setEditedRowIndex] = useState(-1);
+    const [editedLineData, setEditedLineData] = useState({});
+    const [currentDeleteNumber, setCurrentDeleteNumber] = useState(null);
     useEffect(() => {
         console.log(schedule);
 
@@ -63,6 +66,37 @@ function ScheduleUpdate({ schedule, onclose, scheduleData }) {
     const tableCellStyle = {
         padding: '8px',
         borderBottom: '1px solid #ddd'
+    };
+    const handleDeleteLineFromTable = (tagNumber) => {
+        setCurrentDeleteNumber(tagNumber);
+        // setShowConfirm(true);
+    };
+
+    const handleEditOpen = (index) => {
+        setEditedRowIndex(index);
+        setEditedLineData(scheduleData[index]);
+    };
+
+    const handleCloseEdit = () => {
+        setEditedRowIndex(-1);
+        setEditedLineData({});
+    };
+
+    const handleSave = (tag) => {
+        const updatedLineList = [...scheduleData];
+        updatedLineList[editedRowIndex] = { ...editedLineData, tag: tag };
+
+        setEditedRowIndex(-1);
+        setEditedLineData({});
+
+        window.api.send("update-schedule-table", editedLineData);
+    };
+
+    const handleChange = (field, value) => {
+        setEditedLineData({
+            ...editedLineData,
+            [field]: value
+        });
     };
     return (
         // <div
@@ -208,15 +242,33 @@ function ScheduleUpdate({ schedule, onclose, scheduleData }) {
                                     <th style={tableHeaderStyle}>Project Number</th>
                                     <th style={tableHeaderStyle}>Start date</th>
                                     <th style={tableHeaderStyle}>End date</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {scheduleData.map((row, rowIdx) => (
-                                    <tr key={rowIdx}>
-                                        <td style={tableCellStyle}>{row.place}</td>
+                                {scheduleData.map((row, index) => (
+                                    <tr key={index}>
+                                         <td>{editedRowIndex === index ? <input onChange={e => handleChange('place', e.target.value)} type="text" value={editedLineData.place || ''} /> : row.place}</td>
+                                         <td>{editedRowIndex === index ? <input onChange={e => handleChange('projNo', e.target.value)} type="text" value={editedLineData.projNo || ''} /> : row.projNo}</td>
+                                         <td>{editedRowIndex === index ? <input onChange={e => handleChange('startDate', e.target.value)} type="text" value={editedLineData.startDate || ''} /> : row.startDate}</td>
+                                         <td>{editedRowIndex === index ? <input onChange={e => handleChange('endDate', e.target.value)} type="text" value={editedLineData.endDate || ''} /> : row.endDate}</td>
+                                        {/* <td style={tableCellStyle}>{row.place}</td>
                                         <td style={tableCellStyle}>{row.projNo}</td>
                                         <td style={tableCellStyle}>{row.startDate}</td>
-                                        <td style={tableCellStyle}>{row.endDate}</td>
+                                        <td style={tableCellStyle}>{row.endDate}</td> */}
+                                         <td style={{ backgroundColor: '#f0f0f0' }}>
+                                        {editedRowIndex === index ?
+                                            <>
+                                                <i className="fa-solid fa-floppy-disk text-success" onClick={() => handleSave(row.projId)}></i>
+                                                <i className="fa-solid fa-xmark ms-3 text-danger" onClick={handleCloseEdit}></i>
+                                            </>
+                                            :
+                                            <>
+                                                <i className="fa-solid fa-pencil" onClick={() => handleEditOpen(index)}></i>
+                                                <i className="fa-solid fa-trash-can ms-3" onClick={() => handleDeleteLineFromTable(row.projId)}></i>
+                                            </>
+                                        }
+                                    </td>
                                     </tr>
                                 ))}
                             </tbody>

@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('electron', {
 contextBridge.exposeInMainWorld('api', {
     send: (channel, data) => {
         // Whitelist channels for sending messages to the main process
-        let validChannels = ['save-data', 'fetch-data','select-folder','open-project','delete-project','open-database','save-code-data','save-dock-area','remove-dock-area','update-dock-area','register-asset','update-asset','remove-asset','save-ship-project','excel-data-save'
+        let validChannels = ['save-data', 'fetch-data','select-folder','open-project','delete-project','open-database','save-code-data','save-dock-area','remove-dock-area','update-dock-area','register-asset','update-asset','remove-asset','save-ship-project','excel-data-save','update-schedule-table'
     
     ]; // Add 'fetch-data' for reading data 'save-data', 'fetch-data', 
         if (validChannels.includes(channel)) {

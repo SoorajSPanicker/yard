@@ -1274,6 +1274,52 @@ app.whenReady().then(() => {
 
     })
 
+    ipcMain.on('update-schedule-table', (event, updatedData) => {
+        console.log("Received update message");
+        if (!databasePath) {
+            console.error('Project database path not available.');
+            return;
+        }
+
+        // Extracting updated data
+        const {excelId , projId , place , projNo ,planSDate ,planEDate ,startDate , endDate , workDays } = updatedData;
+
+        // Open the project's database
+        const projectDb = new sqlite3.Database(databasePath, (err) => {
+            if (err) {
+                console.error('Error opening project database:', err.message);
+                return;
+            }
+
+            // Update the record in the database
+            projectDb.run(`UPDATE ShipSchedule SET 
+                excelId = ?, place = ?, projNo = ?, planSDate = ?, planEDate = ?, 
+                startDate = ?, endDate = ?, workDays = ? WHERE projId = ?`,
+                [
+                    excelId , place , projNo ,planSDate ,planEDate ,startDate , endDate , workDays, projId 
+                ],
+                (err) => {
+                    if (err) {
+                        console.error('Error updating  ShipSchedule table:', err.message);
+                        return;
+                    }
+
+                    console.log(' ShipSchedule table updated successfully.');
+                    // Fetch updated data from the LineList table
+                    projectDb.all("SELECT * FROM  ShipSchedule", (err, rows) => {
+                        if (err) {
+                            console.error('Error fetching data from ShipSchedule table:', err.message);
+                            return;
+                        }
+
+                        mainWindow.webContents.send('excel-data-saved', rows);
+                    });
+
+                }
+            );
+        });
+    });
+
 
 })
 app.on('window-all-closed', () => {
