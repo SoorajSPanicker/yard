@@ -5354,7 +5354,7 @@ function ReviewSch({ scheduleData }) {
                                                         minWidth: CELL_WIDTH,
                                                         maxWidth: CELL_WIDTH
                                                     }}
-                                                    onClick={() => handleCellClick(row, date)}
+                                                    // onClick={() => handleCellClick(row, date)}
                                                 >
                                                     {isStart ? row.projNo : ''}
                                                 </td>
@@ -5369,7 +5369,6 @@ function ReviewSch({ scheduleData }) {
             </div>
             {updatepage && (
                 <ScheduleUpdate
-                    schedule={selectedSchedule}
                     onClose={() => setupdatepage(false)}
                     scheduleData={scheduleData}
                 />
