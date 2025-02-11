@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-function ScheduleUpdate({ schedule, onclose, scheduleData }) {
+function ScheduleUpdate({ schedule, onClose, scheduleData }) {
     const [isDragging, setIsDragging] = useState(false);
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -53,7 +53,7 @@ function ScheduleUpdate({ schedule, onclose, scheduleData }) {
     };
 
     const handleClose = () => {
-        setIsVisible(false);
+       onClose()
     };
     const tableHeaderStyle = {
         padding: '8px',
