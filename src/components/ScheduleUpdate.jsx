@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-function ScheduleUpdate({ onClose, scheduleData }) {
+function ScheduleUpdate({ schedule, onclose, scheduleData }) {
     const [isDragging, setIsDragging] = useState(false);
     const [position, setPosition] = useState({ x: 100, y: 100 });
     const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -10,7 +10,10 @@ function ScheduleUpdate({ onClose, scheduleData }) {
     const [editedRowIndex, setEditedRowIndex] = useState(-1);
     const [editedLineData, setEditedLineData] = useState({});
     const [currentDeleteNumber, setCurrentDeleteNumber] = useState(null);
-   
+    useEffect(() => {
+        console.log(schedule);
+
+    }, [schedule])
 
     useEffect(() => {
         console.log(scheduleData);
@@ -50,7 +53,7 @@ function ScheduleUpdate({ onClose, scheduleData }) {
     };
 
     const handleClose = () => {
-       onClose()
+        setIsVisible(false);
     };
     const tableHeaderStyle = {
         padding: '8px',
