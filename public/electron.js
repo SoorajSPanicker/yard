@@ -512,7 +512,7 @@ app.whenReady().then(() => {
                             console.error('Error fetching data from Tree table:', err.message);
                             return;
                         }
-        
+
                         console.log('Data in the MtoAreaTagRelTable table:', rows);
                         mainWindow.webContents.send('excel-data-saved', rows);
                     });
@@ -1234,8 +1234,47 @@ app.whenReady().then(() => {
         })
     });
 
-    ipcMain.on('excel-data-save', (event, data) => {
+    // ipcMain.on('excel-data-save', (event, data) => {
 
+    //     if (!databasePath) {
+    //         console.error('Project database path not available.');
+    //         return;
+    //     }
+
+    //     const projectDb = new sqlite3.Database(databasePath, (err) => {
+    //         if (err) {
+    //             console.error('Error opening project database:', err.message);
+    //             return;
+    //         }
+
+    //         // const Mto_DocID = generateCustomID('Md');
+
+    //         projectDb.run(
+    //             'INSERT INTO ShipSchedule (excelId ,projId ,place ,projNo ,planSDate ,planEDate ,startDate ,endDate ,workDays ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    //             [data.excelId, data.projId, data.place, data.projNo, data.planSDate, data.planEDate, data.startDate, data.endDate, data.workDays],
+    //             function (err) {
+    //                 if (err) {
+    //                     console.error('Error inserting into ShipSchedule:', err.message);
+    //                     return;
+    //                 }
+    //                 console.log(`Row inserted with projNo: ${data.projNo}`);
+    //             }
+
+    //         );
+    //         projectDb.all("SELECT * FROM ShipSchedule", (err, rows) => {
+    //             if (err) {
+    //                 console.error('Error fetching data from Tree table:', err.message);
+    //                 return;
+    //             }
+
+    //             console.log('Data in the MtoAreaTagRelTable table:', rows);
+    //             mainWindow.webContents.send('excel-data-saved', rows);
+    //         });
+    //     })
+
+    // })
+
+    ipcMain.on('excel-data-save', (event, data) => {
         if (!databasePath) {
             console.error('Project database path not available.');
             return;
@@ -1247,32 +1286,65 @@ app.whenReady().then(() => {
                 return;
             }
 
-            // const Mto_DocID = generateCustomID('Md');
-
-            projectDb.run(
-                'INSERT INTO ShipSchedule (excelId ,projId ,place ,projNo ,planSDate ,planEDate ,startDate ,endDate ,workDays ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [data.excelId, data.projId, data.place, data.projNo, data.planSDate, data.planEDate, data.startDate, data.endDate, data.workDays],
-                function (err) {
+            // First check if record exists with same place and projNo
+            projectDb.get(
+                'SELECT * FROM ShipSchedule WHERE place = ? AND projNo = ?',
+                [data.place, data.projNo],
+                (err, row) => {
                     if (err) {
-                        console.error('Error inserting into ShipSchedule:', err.message);
+                        console.error('Error checking existing record:', err.message);
                         return;
                     }
-                    console.log(`Row inserted with projNo: ${data.projNo}`);
-                }
 
+                    if (row) {
+                        // Record exists, update startDate and endDate
+                        projectDb.run(
+                            'UPDATE ShipSchedule SET startDate = ?, endDate = ? WHERE place = ? AND projNo = ?',
+                            [data.startDate, data.endDate, data.place, data.projNo],
+                            function (err) {
+                                if (err) {
+                                    console.error('Error updating ShipSchedule:', err.message);
+                                    return;
+                                }
+                                console.log(`Updated record for projNo: ${data.projNo}`);
+
+                                // Fetch and send updated data
+                                projectDb.all("SELECT * FROM ShipSchedule", (err, rows) => {
+                                    if (err) {
+                                        console.error('Error fetching data:', err.message);
+                                        return;
+                                    }
+                                    mainWindow.webContents.send('excel-data-saved', rows);
+                                });
+                            }
+                        );
+                    } else {
+                        // Record doesn't exist, insert new record
+                        projectDb.run(
+                            'INSERT INTO ShipSchedule (excelId, projId, place, projNo, planSDate, planEDate, startDate, endDate, workDays) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                            [data.excelId, data.projId, data.place, data.projNo, data.planSDate, data.planEDate, data.startDate, data.endDate, data.workDays],
+                            function (err) {
+                                if (err) {
+                                    console.error('Error inserting into ShipSchedule:', err.message);
+                                    return;
+                                }
+                                console.log(`Inserted new row with projNo: ${data.projNo}`);
+
+                                // Fetch and send updated data
+                                projectDb.all("SELECT * FROM ShipSchedule", (err, rows) => {
+                                    if (err) {
+                                        console.error('Error fetching data:', err.message);
+                                        return;
+                                    }
+                                    mainWindow.webContents.send('excel-data-saved', rows);
+                                });
+                            }
+                        );
+                    }
+                }
             );
-            projectDb.all("SELECT * FROM ShipSchedule", (err, rows) => {
-                if (err) {
-                    console.error('Error fetching data from Tree table:', err.message);
-                    return;
-                }
-
-                console.log('Data in the MtoAreaTagRelTable table:', rows);
-                mainWindow.webContents.send('excel-data-saved', rows);
-            });
-        })
-
-    })
+        });
+    });
 
     ipcMain.on('update-schedule-table', (event, updatedData) => {
         console.log("Received update message");
@@ -1282,7 +1354,7 @@ app.whenReady().then(() => {
         }
 
         // Extracting updated data
-        const {excelId , projId , place , projNo ,planSDate ,planEDate ,startDate , endDate , workDays } = updatedData;
+        const { excelId, projId, place, projNo, planSDate, planEDate, startDate, endDate, workDays } = updatedData;
 
         // Open the project's database
         const projectDb = new sqlite3.Database(databasePath, (err) => {
@@ -1296,7 +1368,7 @@ app.whenReady().then(() => {
                 excelId = ?, place = ?, projNo = ?, planSDate = ?, planEDate = ?, 
                 startDate = ?, endDate = ?, workDays = ? WHERE projId = ?`,
                 [
-                    excelId , place , projNo ,planSDate ,planEDate ,startDate , endDate , workDays, projId 
+                    excelId, place, projNo, planSDate, planEDate, startDate, endDate, workDays, projId
                 ],
                 (err) => {
                     if (err) {
